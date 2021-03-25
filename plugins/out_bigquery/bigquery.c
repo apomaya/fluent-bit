@@ -311,6 +311,7 @@ static int cb_bigquery_init(struct flb_output_instance *ins,
         flb_plg_error(ctx->ins, "upstream creation failed");
         return -1;
     }
+    flb_output_upstream_set(ctx->u, ins);
 
     /* Retrief oauth2 token */
     token = get_google_token(ctx);
@@ -482,7 +483,7 @@ static void cb_bigquery_flush(const void *data, size_t bytes,
     else {
         /* The request was issued successfully, validate the 'error' field */
         flb_plg_debug(ctx->ins, "HTTP Status=%i", c->resp.status);
-        if (c->resp.status == 200) {
+        if (c->resp.status == 200 && (!c->resp.payload_size || !strstr(c->resp.payload, "insertErrors"))) {
             ret_code = FLB_OK;
         }
         else {
@@ -490,6 +491,8 @@ static void cb_bigquery_flush(const void *data, size_t bytes,
                 /* we got an error */
                 flb_plg_warn(ctx->ins, "error\n%s",
                              c->resp.payload);
+                flb_plg_debug(ctx->ins, "offender\n%s",
+                             payload_buf);
             }
             else {
                 flb_plg_debug(ctx->ins, "response\n%s",
